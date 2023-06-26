@@ -19,5 +19,7 @@ ex: ./main 4 19 20 25 9 0.7 10
 * This will print the log likelihood of  sample = {19, 20, 25, 9}; teta = 10; p = 0.7
 
 2. Estimating:
-./main 4 19 20 25 9
+./main <sample_size> <sample separate by 'space bar'>
+
+ex: ./main 4 19 20 25 9
 * This will print the best 'teta' and 'p' for the sample = {19, 20, 25, 9}
