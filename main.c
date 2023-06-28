@@ -11,6 +11,7 @@ long double probability_function (int v, float p, int teta, long double** matriz
 void transition(long double** matriz, int state, float p, int teta);
 void printMatriz(long double** matriz);
 double generateRandom();
+long double logaddexpl(long double x, long double y);
 
 int sample_size;
 
@@ -43,11 +44,7 @@ int main (int argc, char** argv) {
     
             srand(time(NULL));
     
-            printf("likelihood(%.3f, %i; amostra) = %Lf\n", p, teta, likelihood(amostra, p, teta, matriz));
-            //printf("likelihood(%.3f, %i; {%i", p, teta, amostra[0]);
-            //for (int i=1; i < sample_size; i++) printf(", %i", amostra[i]);
-            //printf("}) = ");
-            //printf("%Lf\n", likelihood(amostra, p, teta, matriz));
+            likelihood(amostra, p, teta, matriz);
     }
 
     else if (argc == sample_size + 2) {
@@ -101,7 +98,7 @@ void estimator(int* amostra, long double** matriz) {
 	
 	for (teta = 1; teta <= 21; teta++) {
 	
-		for (p = 0.05; p <= 1; p += 0.05) {
+		for (p = 0.05; p < 1.05; p += 0.05) {
 		
 			long double curr = likelihood(amostra, p, teta, matriz);
 			
@@ -114,7 +111,7 @@ void estimator(int* amostra, long double** matriz) {
 		}
 	}
 	
-	printf("[!]teta estimator: %i\t[!]p estimator: %.3f\n", max_teta, max_p);
+	printf(">>teta estimator: %i\t>>p estimator: %.2f\n", max_teta, max_p);
 }
 
 
@@ -124,6 +121,12 @@ long double likelihood (int* v, float p, int teta, long double** matriz) {
 	long double likelihood = logl(1);
 
 	for (int i=0; i < sample_size; i++) likelihood += logl(probability_function(v[i], p, teta, matriz));
+	
+	// Print info
+	printf("likelihood(%.3f, %i; {%i", p, teta, v[0]);
+	for (int i=1; i < sample_size; i++) printf(", %i", v[i]);
+	printf("})");
+	printf(" = %Le\n", likelihood);
     
 	return likelihood;
 }
@@ -136,13 +139,13 @@ long double probability_function (int v, float p, int teta, long double** matriz
 	// Realizar transicoes de markov até o jogador quiser parar no valor "teta" com probabilidade "p"
 	for (int i=0; i < 21; i++) transition(matriz, i, p, teta);
 	
-	printMatriz(matriz);
+	//printMatriz(matriz);
 	
 	// Pega a probabilidade de terminar com um valor v num jogo de BlackJack - em log()
-	long double res;
-	for (int i=0; i < 22; i++) res += expl(matriz[i][v]);
+	long double res = logl(1);
+	for (int i=0; i < 22; i++) res = logaddexpl(res, matriz[i][v]);
 
-	printf("Pr(%i; %.3f, %i) = %Lf\n", v, p, teta, res);
+	//printf("Pr(%i; %.3f, %i) = %Le\n", v, p, teta, res);
 
 	return res;
 }
@@ -169,14 +172,8 @@ void transition(long double** matriz, int state, float p, int teta) {
 				// Se pode-se alcançar valores >= 'teta', verifica se queremos parar com probabilidade 'p'
 				if (i >= teta) {
                 
-					// Se mantem com a mesma soma caso p de certo
-					if (generateRandom() < p) {
-					
-						next[i] += current[i] + logl(p);
-						return;
-					}
-					
-					else stop = logl(1-p);
+					next[i] += current[i] + logl(p);
+					stop = logl(1-p);
 				}
 
 				if (dif > 0) {
@@ -220,3 +217,16 @@ void printMatriz(long double** matriz) {
     
 	printf("\n\n");
 }
+
+
+long double logaddexpl(long double x, long double y) {
+    // Calculate the maximum of x and y
+    long double max_val = (x > y) ? x : y;
+
+    // Calculate the difference between x and y
+    long double diff = (x > y) ? (y - x) : (x - y);
+
+    // Calculate the result using the log-sum-exp formula
+    return max_val + logl(1.0 + expl(diff));
+}
+
