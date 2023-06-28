@@ -16,7 +16,6 @@ int sample_size;
 
 
 
-
 int main (int argc, char** argv) {
 
     float p; // entre 0 e 1
@@ -122,9 +121,9 @@ void estimator(int* amostra, long double** matriz) {
 // Somatorio do log das probabilidades -> Sum i of (log Pr(vi|teta, p)
 long double likelihood (int* v, float p, int teta, long double** matriz) {
 
-	long double likelihood = -INFINITY;
+	long double likelihood = logl(1);
 
-	for (int i=0; i < sample_size; i++) likelihood += probability_function(v[i], p, teta, matriz);
+	for (int i=0; i < sample_size; i++) likelihood += logl(probability_function(v[i], p, teta, matriz));
     
 	return likelihood;
 }
@@ -140,9 +139,10 @@ long double probability_function (int v, float p, int teta, long double** matriz
 	printMatriz(matriz);
 	
 	// Pega a probabilidade de terminar com um valor v num jogo de BlackJack - em log()
-	long double res = matriz[21][v];
+	long double res;
+	for (int i=0; i < 22; i++) res += expl(matriz[i][v]);
 
-	printf("Pr(%i; %.3f, %i) = %Le\n", v, p, teta, res);
+	printf("Pr(%i; %.3f, %i) = %Lf\n", v, p, teta, res);
 
 	return res;
 }
