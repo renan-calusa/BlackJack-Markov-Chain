@@ -97,7 +97,6 @@ void estimator(int* amostra, long double** matriz) {
 	long double max_likelihood = -INFINITY;
 	
 	for (teta = 1; teta <= 21; teta++) {
-	
 		for (p = 0.05; p < 1.05; p += 0.05) {
 		
 			long double curr = likelihood(amostra, p, teta, matriz);
@@ -120,13 +119,13 @@ long double likelihood (int* v, float p, int teta, long double** matriz) {
 
 	long double likelihood = logl(1);
 
-	for (int i=0; i < sample_size; i++) likelihood += logl(probability_function(v[i], p, teta, matriz));
+	for (int i=0; i < sample_size; i++) likelihood += probability_function(v[i], p, teta, matriz);
 	
 	// Print info
 	printf("likelihood(%.3f, %i; {%i", p, teta, v[0]);
 	for (int i=1; i < sample_size; i++) printf(", %i", v[i]);
-	printf("})");
-	printf(" = %Le\n", likelihood);
+	if (isnan(likelihood)) printf("}) = IMPOSSIBLE\n");
+	else printf("}) = %Le\n", likelihood);
     
 	return likelihood;
 }
@@ -143,9 +142,7 @@ long double probability_function (int v, float p, int teta, long double** matriz
 	
 	// Pega a probabilidade de terminar com um valor v num jogo de BlackJack - em log()
 	long double res = logl(1);
-	for (int i=0; i < 22; i++) res = logaddexpl(res, matriz[i][v]);
-
-	//printf("Pr(%i; %.3f, %i) = %Le\n", v, p, teta, res);
+	for (int i=0; i < 22; i++) if (matriz[i][v] != -INFINITY) res += matriz[i][v];
 
 	return res;
 }
