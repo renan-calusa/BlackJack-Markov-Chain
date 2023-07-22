@@ -85,9 +85,9 @@ long double** init() {
 // Seta valores default
 void set_default(long double** matriz) {
 
-	for (int i = 0; i < 22; i++) for (int j = 0; j < 31; j++) matriz[i][j] = logl(0);   // equivalente à Pr(0)
+	for (int i = 0; i < 22; i++) for (int j = 0; j < 31; j++) matriz[i][j] = 0;
 
-	matriz[0][0] = logl(1); // (log(1) = 0) 100% de estar com zero no estado zero
+	matriz[0][0] = 1;
 }
 
 
@@ -128,13 +128,13 @@ long double likelihood (int* v, float p, int teta, long double** matriz) {
 	
 		long double prob = probability_function(v[i], p, teta, matriz);
 		
-		if (prob == -INFINITY) {
+		if (prob == 0) {
 		
 			likelihood = -INFINITY;
 			break;
 		}
 		
-		likelihood = logl(expl(likelihood) + expl(prob));
+		likelihood = logl(expl(likelihood) + prob);
 	}
 	
 	// Print info
@@ -159,7 +159,7 @@ long double probability_function (int v, float p, int teta, long double** matriz
 	// Pega a probabilidade de terminar com um valor v num jogo de BlackJack - em log()
 	long double res = matriz[21][v];
 	
-	printf("Pr(%i; %.2f, %i) = %Lf\n", v, p, teta, expl(res));
+	printf("Pr(%i; %.2f, %i) = %Lf\n", v, p, teta, res);
 
 	return res;
 }
@@ -177,24 +177,27 @@ void transition(long double** matriz, int state, float p, int teta) {
 	for (int i = 0; i < 31; i++) {
 		for (int j = 0; j < 31; j++) {
             
-			if (current[i] != -INFINITY) {
+			if (current[i] != 0) {
 				
 				double probability;
-				double stop = 0;
 				int dif = j - i;
+				int stop = 0;
 				
-				// Se pode-se alcançar valores >= 'teta', verifica se queremos parar com probabilidade 'p'
+				
 				if (i >= teta) {
+				
+					if (j == i && findValue(stopHit, i) == 0) {
 					
-					if (findValue(stopHit, i)) next[i] = logl(expl(next[i]) + expl(current[i]));
-					
-					else {
-						next[i] = logl(expl(next[i]) + expl(current[i])*p);
+						next[j] += current[i] * p;
 						
 						stopHit[livre] = i;
 						livre++;
 					}
+					
+					if (j > i) stop = 1;
 				}
+				
+
 
 				if (dif > 0) {
 
@@ -204,9 +207,8 @@ void transition(long double** matriz, int state, float p, int teta) {
 
 					if (probability != 0) {
 						
-						if (stop != 0) next[j] = logl(expl(next[j]) + expl(current[i])*probability*(1-p));
-						
-						else next[j] = logl(expl(next[j]) + expl(current[i])*probability);
+						if (stop == 0) next[j] += current[i] * probability;
+						else next[j] += current[i] * probability * (1-p);
 					}
 				}
 			}
@@ -217,7 +219,7 @@ void transition(long double** matriz, int state, float p, int teta) {
 
 int findValue(int* array, int value) {
 
-	for (int i=0; i < 22; i++) if (array[i] == value) return 1;
+	for (int i=0; i < livre; i++) if (array[i] == value) return 1;
 	
 	return 0;
 }
@@ -229,7 +231,7 @@ void printMatriz(long double** matriz) {
         
 		printf("matriz[%i] : ", i);
 
-		for (int j = 0; j < 31; j++) printf("%Le ", matriz[i][j]);
+		for (int j = 0; j < 31; j++) printf("%Lf ", matriz[i][j]);
 
 		printf("\n");
 	}
