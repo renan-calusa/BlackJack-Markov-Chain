@@ -10,60 +10,65 @@ long double likelihood(int* v, float p, int teta, long double** matriz);
 long double probability_function (int v, float p, int teta, long double** matriz);
 void transition(long double** matriz, int state, float p, int teta);
 void printMatriz(long double** matriz);
-double generateRandom();
 long double logaddexpl(long double x, long double y);
+int findValue(int* array, int value);
 
 int sample_size;
-
+int* stopHit;
+int livre;
 
 
 int main (int argc, char** argv) {
 
-    float p; // entre 0 e 1
-    int teta; // entre 1 e 21
-    int* amostra;
-    
-    long double** matriz = init();
-    
-    sample_size = atoi(argv[1]);
-    
-    if (argc == sample_size + 4) {
+	float p; // entre 0 e 1
+	int teta; // entre 1 e 21
+	int* amostra;
+
+	stopHit = (int*) malloc(sizeof(int)*21);
+	for (int i=0; i < 22; i++) stopHit[i] = 0;
+	livre = 0;
+
+	long double** matriz = init();
+
+	sample_size = atoi(argv[1]);
+
+	if (argc == sample_size + 4) {
             
-            // Caso que se quer calcular o likelihood de um agente descrito
-            
-            amostra = (int*) malloc(sizeof(int)*sample_size);
-            for (int i=0; i < sample_size; i++) amostra[i] = atoi(argv[i+2]);  // entre 0 e 30
-            
-            p = strtof(argv[argc-2], NULL);
-            teta = atoi(argv[argc-1]);
+		// Caso que se quer calcular o likelihood de um agente descrito
 
-            if (p <= 0 || p > 1 || teta < 1 || teta > 21) {
-                printf("[-] Valores passados fora do intervalo esperado!");
-                return 0;
-            }
-    
-            srand(time(NULL));
-    
-            likelihood(amostra, p, teta, matriz);
-    }
+		amostra = (int*) malloc(sizeof(int)*sample_size);
+		for (int i=0; i < sample_size; i++) amostra[i] = atoi(argv[i+2]);  // entre 0 e 30
 
-    else if (argc == sample_size + 2) {
-    
-    	// Caso que se quer estimar 'teta' e 'p' de uma amostra
-    	
-    	amostra = (int*) malloc(sizeof(int)*sample_size);
-        for (int i=0; i < sample_size; i++) amostra[i] = atoi(argv[i+2]);  // entre 0 e 30
-        
-        estimator(amostra, matriz);
-    }
+		p = strtof(argv[argc-2], NULL);
+		teta = atoi(argv[argc-1]);
 
-    else {
-        printf("[-] Usage: ./exec <tamanho da amostra> <amostra separada por 'space bar'> <float p> <int teta>\n");
-        return 0;
-    }
+		if (p <= 0 || p > 1 || teta < 1 || teta > 21) {
+			printf("[-] Valores passados fora do intervalo esperado!");
+			return 0;
+		}
+    
+		srand(time(NULL));
+
+		likelihood(amostra, p, teta, matriz);
+	}
+
+	else if (argc == sample_size + 2) {
+    
+		// Caso que se quer estimar 'teta' e 'p' de uma amostra
+
+		amostra = (int*) malloc(sizeof(int)*sample_size);
+		for (int i=0; i < sample_size; i++) amostra[i] = atoi(argv[i+2]);  // entre 0 e 30
+
+		estimator(amostra, matriz);
+	}
+
+	else {
+		printf("[-] Usage: ./exec <tamanho da amostra> <amostra separada por 'space bar'> <float p> <int teta>\n");
+		return 0;
+	}
     
 
-    return 0;
+	return 0;
 }
 
 
@@ -119,12 +124,23 @@ long double likelihood (int* v, float p, int teta, long double** matriz) {
 
 	long double likelihood = logl(1);
 
-	for (int i=0; i < sample_size; i++) likelihood += probability_function(v[i], p, teta, matriz);
+	for (int i=0; i < sample_size; i++) {
+	
+		long double prob = probability_function(v[i], p, teta, matriz);
+		
+		if (prob == -INFINITY) {
+		
+			likelihood = -INFINITY;
+			break;
+		}
+		
+		likelihood = logl(expl(likelihood) + expl(prob));
+	}
 	
 	// Print info
-	printf("likelihood(%.3f, %i; {%i", p, teta, v[0]);
+	printf("likelihood(%.2f, %i; {%i", p, teta, v[0]);
 	for (int i=1; i < sample_size; i++) printf(", %i", v[i]);
-	if (isnan(likelihood)) printf("}) = IMPOSSIBLE\n");
+	if (likelihood == -INFINITY) printf("}) = IMPOSSIBLE\n");
 	else printf("}) = %Le\n", likelihood);
     
 	return likelihood;
@@ -138,11 +154,12 @@ long double probability_function (int v, float p, int teta, long double** matriz
 	// Realizar transicoes de markov até o jogador quiser parar no valor "teta" com probabilidade "p"
 	for (int i=0; i < 21; i++) transition(matriz, i, p, teta);
 	
-	//printMatriz(matriz);
+	printMatriz(matriz);
 	
 	// Pega a probabilidade de terminar com um valor v num jogo de BlackJack - em log()
-	long double res = logl(1);
-	for (int i=0; i < 22; i++) if (matriz[i][v] != -INFINITY) res += matriz[i][v];
+	long double res = matriz[21][v];
+	
+	printf("Pr(%i; %.2f, %i) = %Lf\n", v, p, teta, expl(res));
 
 	return res;
 }
@@ -160,33 +177,36 @@ void transition(long double** matriz, int state, float p, int teta) {
 	for (int i = 0; i < 31; i++) {
 		for (int j = 0; j < 31; j++) {
             
-			if (current[i] != logl(0)) {
+			if (current[i] != -INFINITY) {
 				
-				long double probability;
-				long double stop = logl(0);
+				double probability;
+				double stop = 0;
 				int dif = j - i;
 				
 				// Se pode-se alcançar valores >= 'teta', verifica se queremos parar com probabilidade 'p'
 				if (i >= teta) {
-                
-					next[i] += current[i] + logl(p);
-					stop = logl(1-p);
+					
+					if (findValue(stopHit, i)) next[i] = logl(expl(next[i]) + expl(current[i]));
+					
+					else {
+						next[i] = logl(expl(next[i]) + expl(current[i])*p);
+						
+						stopHit[livre] = i;
+						livre++;
+					}
 				}
 
 				if (dif > 0) {
 
-					if (dif == 10) probability = logl(16.0 / 52.0);  // log(16/52) para {10, J, Q, K}
-					else if (dif <= 11) probability = logl(4.0 / 52.0);  // log(4/52) para {1, 2, 3, 4, 5, 6, 7, 8, 9, 11}
-					else probability = logl(0);  // log(0) = -infinity
+					if (dif == 10) probability = 16.0/52.0;
+					else if (dif <= 11) probability = 4.0/52.0;
+					else probability = 0;
 
-					if (probability != -INFINITY) {
+					if (probability != 0) {
 						
-						// Verificar se o next[j] esta como default -INF -> daria problema na soma de logs
-						if (next[j] == -INFINITY) next[j] = logl(1);
+						if (stop != 0) next[j] = logl(expl(next[j]) + expl(current[i])*probability*(1-p));
 						
-						if (stop != -INFINITY) next[j] += current[i] + probability + stop;
-						
-						else next[j] += current[i] + probability;
+						else next[j] = logl(expl(next[j]) + expl(current[i])*probability);
 					}
 				}
 			}
@@ -195,9 +215,11 @@ void transition(long double** matriz, int state, float p, int teta) {
 }
 
 
-// Devolve número aleatório de 0 a 1
-double generateRandom () {
-	return (double) rand() / RAND_MAX;
+int findValue(int* array, int value) {
+
+	for (int i=0; i < 22; i++) if (array[i] == value) return 1;
+	
+	return 0;
 }
 
 
@@ -220,10 +242,9 @@ long double logaddexpl(long double x, long double y) {
     // Calculate the maximum of x and y
     long double max_val = (x > y) ? x : y;
 
-    // Calculate the difference between x and y
-    long double diff = (x > y) ? (y - x) : (x - y);
+    // Calculate the minimum of x and y
+    long double min_val = (x < y) ? x : y;
 
     // Calculate the result using the log-sum-exp formula
-    return max_val + logl(1.0 + expl(diff));
+    return max_val + logl(1.0 + expl(min_val - max_val));
 }
-
