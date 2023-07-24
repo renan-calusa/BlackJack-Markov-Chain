@@ -92,11 +92,13 @@ int playGame() {
 	
 	int somaInicial = primeira + segunda;
 	
+	double randomValue = (double) rand() / RAND_MAX;
+	
 	// verificar Double-Down ou Split
 	
-	if (somaInicial == 9 || somaInicial == 10 || somaInicial == 11) return somaInicial + drawCard();
+	if ((somaInicial == 9 || somaInicial == 10 || somaInicial == 11) && randomValue <= pd) return somaInicial + drawCard();
 	
-	else if (primeira == segunda) {
+	else if (primeira == segunda && randomValue <= ps) {
 	
 		int jogoA = primeira + drawCard();
 		int jogoB = segunda + drawCard();
