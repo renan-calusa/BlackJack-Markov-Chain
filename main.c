@@ -11,32 +11,16 @@ long double probability_function (int v, float p, int teta, long double** matriz
 void transition(long double** matriz, int state, float p, int teta);
 void printMatriz(long double** matriz);
 long double logaddexpl(long double x, long double y);
-int findValue(int* array, int value);
+int search(int* array, int livre, int value);
 
 int sample_size;
-int* stopHit;
-int* counterHit;
-int livre_stopHit;
-int livre_counterHit;
 
 
 int main (int argc, char** argv) {
 
 	float p; // entre 0 e 1
 	int teta; // entre 1 e 21
-	int* amostra;
-
-	stopHit = (int*) malloc(sizeof(int)*21);
-	counterHit = (int*) malloc(sizeof(int)*21);
-	
-	for (int i=0; i < 22; i++) {
-		stopHit[i] = 0;
-		counterHit[i] = 0;
-	}
-	
-	livre_stopHit = 0;
-	livre_counterHit = 0;
-	
+	int* amostra;	
 	
 
 	long double** matriz = init();
@@ -165,7 +149,7 @@ long double probability_function (int v, float p, int teta, long double** matriz
 	// Realizar transicoes de markov até o jogador quiser parar no valor "teta" com probabilidade "p"
 	for (int i=0; i < 21; i++) transition(matriz, i, p, teta);
 	
-	printMatriz(matriz);
+	//printMatriz(matriz);
 	
 	// Pega a probabilidade de terminar com um valor v num jogo de BlackJack - em log()
 	long double res = matriz[21][v];
@@ -184,6 +168,10 @@ void transition(long double** matriz, int state, float p, int teta) {
 	long double* current = matriz[state];
 	long double* next = matriz[state+1];
 	
+	int* usedValues = (int*) malloc(sizeof(int)*22);
+	for (int i=0; i < 22; i++) usedValues[i] = 0;
+	int livre = 0;
+	
 	// Percorrendo todos valores no atual (i) e no proximo (j)
 	for (int i = 0; i < 31; i++) {
 		for (int j = 0; j < 31; j++) {
@@ -192,60 +180,46 @@ void transition(long double** matriz, int state, float p, int teta) {
 				
 				double probability;
 				int dif = j - i;
-				int allow = 0;
 				
+				if (dif == 10) probability = 16.0/52;
+				else if (dif <= 11) probability = 4.0/52;
+				else probability = 0;	
 				
-				if (dif > 0) {
-
-					if (dif == 10) probability = 16.0/52.0;
-					else if (dif <= 11) probability = 4.0/52.0;
-					else probability = 0;
+				if (dif > 0 && probability != 0) {
 					
+					if (i < teta) next[j] += current[i] * probability;
 					
-					if (probability != 0) {
+					else {
 					
-						if (i >= teta) {
-						
-							if (findValue(counterHit, i) == 0) {
-							
-								// Primeira vez
-								allow = 1;
-								
-								counterHit[livre_counterHit] = i;
-								livre_counterHit++;				
-							}
-						}
-						
-						if (allow) next[j] += current[i] * probability * (1-p);
-						else next[j] += current[i] * probability;
+						if (usedValues[livre] == i) next[j] += current[i] * probability * (1 - p);
 					}
 				}
 				
+				else if (i == j && i >= teta) {
 				
-				else if (i >= teta && i == j) {
-				
-					if (findValue(stopHit, i) == 0) {
-						
-						// Primeira vez
-						next[j] += current[i] * p;
-						
-						stopHit[livre_stopHit] = i;
-						livre_stopHit++;
-					}
+					if (search(usedValues, livre, i) == -1) next[i] += current[i] * p;
 					
-					else next[i] += current[i];
+					else {
+						
+						usedValues[livre] = i;
+						livre++;
+						
+						next[i] += current[i];
+					}
 				}
 			}
 		}
 	}
+	
+	free(usedValues);
 }
 
 
-int findValue(int* array, int value) {
+int search(int* array, int livre, int value) {
 
-	for (int i=0; i < 22; i++) if (array[i] == value) return 1;
+	for (int i=0; i < livre; i++) if (array[i] == value) return i;
 	
-	return 0;
+	return -1;
 }
 
 
