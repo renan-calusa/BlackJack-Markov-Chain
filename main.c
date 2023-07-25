@@ -15,7 +15,9 @@ int findValue(int* array, int value);
 
 int sample_size;
 int* stopHit;
-int livre;
+int* counterHit;
+int livre_stopHit;
+int livre_counterHit;
 
 
 int main (int argc, char** argv) {
@@ -25,8 +27,17 @@ int main (int argc, char** argv) {
 	int* amostra;
 
 	stopHit = (int*) malloc(sizeof(int)*21);
-	for (int i=0; i < 22; i++) stopHit[i] = 0;
-	livre = 0;
+	counterHit = (int*) malloc(sizeof(int)*21);
+	
+	for (int i=0; i < 22; i++) {
+		stopHit[i] = 0;
+		counterHit[i] = 0;
+	}
+	
+	livre_stopHit = 0;
+	livre_counterHit = 0;
+	
+	
 
 	long double** matriz = init();
 
@@ -181,35 +192,48 @@ void transition(long double** matriz, int state, float p, int teta) {
 				
 				double probability;
 				int dif = j - i;
-				int stop = 0;
+				int allow = 0;
 				
 				
-				if (i >= teta) {
-				
-					if (j == i && findValue(stopHit, i) == 0) {
-					
-						next[j] += current[i] * p;
-						
-						stopHit[livre] = i;
-						livre++;
-					}
-					
-					if (j > i) stop = 1;
-				}
-				
-
-
 				if (dif > 0) {
 
 					if (dif == 10) probability = 16.0/52.0;
 					else if (dif <= 11) probability = 4.0/52.0;
 					else probability = 0;
-
+					
+					
 					if (probability != 0) {
+					
+						if (i >= teta) {
 						
-						if (stop == 0) next[j] += current[i] * probability;
-						else next[j] += current[i] * probability * (1-p);
+							if (findValue(counterHit, i) == 0) {
+							
+								// Primeira vez
+								allow = 1;
+								
+								counterHit[livre_counterHit] = i;
+								livre_counterHit++;				
+							}
+						}
+						
+						if (allow) next[j] += current[i] * probability * (1-p);
+						else next[j] += current[i] * probability;
 					}
+				}
+				
+				
+				else if (i >= teta && i == j) {
+				
+					if (findValue(stopHit, i) == 0) {
+						
+						// Primeira vez
+						next[j] += current[i] * p;
+						
+						stopHit[livre_stopHit] = i;
+						livre_stopHit++;
+					}
+					
+					else next[i] += current[i];
 				}
 			}
 		}
@@ -219,7 +243,7 @@ void transition(long double** matriz, int state, float p, int teta) {
 
 int findValue(int* array, int value) {
 
-	for (int i=0; i < livre; i++) if (array[i] == value) return 1;
+	for (int i=0; i < 22; i++) if (array[i] == value) return 1;
 	
 	return 0;
 }
